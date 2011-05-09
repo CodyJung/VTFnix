@@ -1,7 +1,7 @@
 all:a.out clean
 
 a.out:vtfmain.o vtfcmdnix.o vtfheader.o vtfoutput.o
-	g++ -g vtfmain.o -L/usr/local/lib -lnvtt -lIL -lILU
+	g++ -g vtfmain.o -L/usr/local/lib/ -lnvtt -lIL -lILU -o"VTFnix"
 
 vtfmain.o:vtfmain.cpp
 	g++ -c -g vtfmain.cpp

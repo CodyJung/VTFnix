@@ -10,6 +10,42 @@ and it needs plenty of work.
 ~Cody Jung
 
 
+/////////////////////////
+/// Setting up prereqs //
+/////////////////////////
+
+First things, you'll need AT LEAST the following:
+cmake, build-essential, and lib*-dev (e.g. libpng-dev) for each filetype you want to support
+
+Next, download both Nvidia texture tools and the devIL libraries:
+http://downloads.sourceforge.net/openil/DevIL-1.7.8.tar.gz
+http://code.google.com/p/nvidia-texture-tools/downloads/detail?name=nvidia-texture-tools-2.0.8-1.tar.gz
+
+	////////////////////////////
+	/// Nvidia texture tools ///
+	////////////////////////////
+	
+	After unzipping the tarball with "tar xvf nvidia-texture-tools-2.0.8-1.tar.gz", change to your new folder with cd nvidia-texture-tools.
+	
+	In this directory, type the following:
+	$ ./configure
+	$ make
+	$ sudo make install
+	
+	/////////////
+	/// DevIL ///
+	/////////////
+	
+	Follow the same instructions as above for unzipping and getting to the right directory, then type:
+	$ ./configure --enable-ILU --with-nvtt=no
+	$ make
+	$ sudo make install
+	
+If, after compilation, you get the error:
+	./VTFnix: error while loading shared libraries: libIL.so.1: cannot open shared object file: No such file or directory
+	
+First, make sure /usr/local/lib is listed in the file /etc/ld.so.conf (or one of it's includes), then run sudo /sbin/ldconfig
+
 ////////////////////
 /// License Info ///
 ////////////////////
