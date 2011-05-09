@@ -1,4 +1,4 @@
-#include "vtfcmdnix.cpp"
+#include "VTFnix.cpp"
 
 int main(int argc, char* argv[]){
 
@@ -6,19 +6,19 @@ int main(int argc, char* argv[]){
 		cerr << "Usage: -in inputFile.ext [-anim] [-f farImage.ext] [-out outfile.vtf]\n";
 		return -1;
 	} else {
-		char *inputFilename, *farImage, *outputFilename;
+		char *inputFilename = NULL, *farImage = NULL, *outputFilename = NULL;
 		bool anim = false;
 		bool fade = false;
 
 		for(int i=1; i<argc; i++){
-			if(argv[i] == "-in" && i+1 != argc){
+			if(strcmp(argv[i], "-in") == 0 && i+1 != argc){
 				inputFilename = argv[i+1];
-			} else if(argv[i] == "-f" && i+1 != argc){
+			} else if(strcmp(argv[i], "-f") == 0 && i+1 != argc){
 				farImage = argv[i+1];
 				fade = true;
-			} else if(argv[i] == "-out" && i+1 != argc){
+			} else if(strcmp(argv[i], "-out") == 0 && i+1 != argc){
 				outputFilename = argv[i+1];
-			} else if(argv[i] == "-anim"){
+			} else if(strcmp(argv[i], "-anim") == 0){
 				anim = true;
 			}
 		}
@@ -32,12 +32,11 @@ int main(int argc, char* argv[]){
 
 
 		if(outputFilename == NULL){
-//			strcpy(outputFilename, inputFilename);
-//			strcat(outputFilename, ".vtf");
+			cerr << "No output file specified, outputting to OUTPUT.vtf\n";
+			outputFilename = (char *)"OUTPUT.vtf"; // Workaround typecast to avoid a deprecation warning
 		}
 
 
-		cout << &inputFilename;
 		if(anim == true){
 			singleAnimation(inputFilename, outputFilename, 0, false);
 		} else if(fade == true){

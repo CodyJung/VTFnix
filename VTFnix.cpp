@@ -4,13 +4,13 @@
 #include <nvtt/nvtt.h>
 #include <IL/il.h>
 #include <IL/ilu.h>
-#include "vtfheader.cpp"
-#include "vtfoutput.cpp"
+#include "VTFheader.h"
+#include "VTFoutput.cpp"
 
 using namespace std;
 
-#ifndef VTF_CMD_CPP
-#define VTF_CMD_CPP
+#ifndef VTFNIX_CPP
+#define VTFNIX_CPP
 
 bool isPowerOfTwo(int x){
 	return (x != 0) && ((x & (x - 1)) == 0);
@@ -18,7 +18,7 @@ bool isPowerOfTwo(int x){
 
 void writeLowResData(int imgSize, char* outputFile){
 	
-	cout << "Writing low res data";
+	cout << "Writing low res data\n";
 
 	int size;
 	if(imgSize <= 16){
@@ -47,7 +47,7 @@ void writeLowResData(int imgSize, char* outputFile){
 
 void writeHighResData(int imgSize, char* outputFile){
 	
-	cout << "Writing high res data" << imgSize << endl;
+	cout << "Writing high res data for size " << imgSize << "\n";
 
 	int size = imgSize;
 
@@ -72,7 +72,8 @@ void writeHighResData(int imgSize, char* outputFile){
 
 void writeHeader(int imgSize, int frames, char* outputFile){
 
-	//This is all leftover code, but let's keep it anyway
+	// A lot of this information comes from the wonderful VTFLib and VTFCMD
+	// See vtfheader.cpp for more info on each of these
 	VTFHEADER header;
 	header.version[0] = 7;
 	header.version[1] = 2;
@@ -86,9 +87,9 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	header.padding0[1] = 0;
 	header.padding0[2] = 0;
 	header.padding0[3] = 0;
-	header.reflectivity[0] = 1; //TODO Figure out how the hell to do this
-	header.reflectivity[1] = 1; //TODO Figure out how the hell to do this
-	header.reflectivity[2] = 1; //TODO Figure out how the hell to do this
+	header.reflectivity[0] = 1; //TODO Figure out how to calculate reflectivity
+	header.reflectivity[1] = 1;
+	header.reflectivity[2] = 1;
 	header.padding1[0] = 0;
 	header.padding1[1] = 0;
 	header.padding1[2] = 0;
@@ -110,9 +111,10 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	header.padding3[2] = 0;
 	header.resourceCount = 0;
 	
-	cout << sizeof(tagVTFHEADER);
-	// Here's where shit starts to happen
-	cout << "WRITING HEADER";
+	//cout << "Header size:" + sizeof(tagVTFHEADER);
+
+	// This is the important stuff
+	cout << "Writing Header\n";
 	ofstream output;
 	output.open(outputFile, ios::out | ios::binary | ios::app);
 	output.write(reinterpret_cast<char *>(&header.signature), 4*sizeof(char));
@@ -224,6 +226,7 @@ int singleAnimation(char *filename, char *outputFile, int skipBiggest, bool skip
 			iluBuildMipmaps();
 			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
 			
+			// Non-fading sprays
 			if(!skipHeaderAndLow){
 				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), numFrames, outputFile);
 
@@ -236,13 +239,16 @@ int singleAnimation(char *filename, char *outputFile, int skipBiggest, bool skip
 				writeLowResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
 			}
 
+			// Setting up the logic for fading sprays
 			int startingMip = numMips;
 			int biggestMip = 0;
-			if(skipBiggest == 1){ //Will skip the largest mipmap
+			if(skipBiggest == 1){ // Will skip the largest mipmap
 				biggestMip = 1;
-			} else if(skipBiggest == 2){ //Will only do the largest mipmap
+			} else if(skipBiggest == 2){ // Will only do the largest mipmap
 				startingMip = 1;
 			}
+
+			// Rolling it all together
 			for(int i=startingMip; i>=biggestMip; i--){
 				for(int j=0; j<numFrames; j++){
 					ILuint image = iluGenImage();
@@ -262,7 +268,7 @@ int singleAnimation(char *filename, char *outputFile, int skipBiggest, bool skip
 				}
 			}
 		}
-	cout << "Done.";
+	cout << "Done.\n";
 	return 0;
 	}
 }
@@ -277,4 +283,4 @@ int fadingImage(char *near, char *far, char *outputFile){
 }
 
 
-#endif /*VTF_CMD_CPP*/
+#endif /*VTFNIX_CPP*/

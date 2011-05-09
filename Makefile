@@ -1,19 +1,16 @@
-all:a.out clean
+all:VTFnix
 
-a.out:vtfmain.o vtfcmdnix.o vtfheader.o vtfoutput.o
-	g++ -g vtfmain.o -L/usr/local/lib/ -lnvtt -lIL -lILU -o"VTFnix"
+VTFnix:VTFmain.o VTFnix.o VTFheader.h VTFoutput.o
+	g++ -g VTFmain.o -L/usr/local/lib/ -lnvtt -lIL -lILU -o"VTFnix"
 
-vtfmain.o:vtfmain.cpp
-	g++ -c -g vtfmain.cpp
+VTFmain.o:VTFmain.cpp
+	g++ -c -g VTFmain.cpp
 
-vtfcmdnix.o:vtfcmdnix.cpp
-	g++ -c -g vtfcmdnix.cpp
+VTFnix.o:VTFnix.cpp
+	g++ -c -g VTFnix.cpp
 
-vtfheader.o:vtfheader.cpp
-	g++ -c -g vtfheader.cpp
-
-vtfoutput.o:vtfoutput.cpp
-	g++ -c -g vtfoutput.cpp
+VTFoutput.o:VTFoutput.cpp
+	g++ -c -g VTFoutput.cpp
 
 clean:
 	rm -rf *.o
