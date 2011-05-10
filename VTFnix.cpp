@@ -1,5 +1,6 @@
 #include <cmath>
 #include <fstream>
+#include <cstdlib>
 #include <iostream>
 #include <nvtt/nvtt.h>
 #include <IL/il.h>
@@ -51,9 +52,14 @@ void writeHighResData(int imgSize, char* outputFile){
 
 	int size = imgSize;
 
+	const void* imageData = malloc(ilGetInteger(IL_IMAGE_SIZE_OF_DATA));
+	cout << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << " ";
+	imageData = 0;
+	imageData = ilGetData();
+
 	nvtt::InputOptions inputOptions;
 	inputOptions.setTextureLayout(nvtt::TextureType_2D, size, size);
-	inputOptions.setMipmapData(ilGetData(), size, size);
+	inputOptions.setMipmapData(imageData, size, size);
 	inputOptions.setMipmapGeneration(false);
 
 	nvtt::OutputOptions outputOptions;

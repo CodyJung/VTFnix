@@ -26,7 +26,7 @@ int main(int argc, char* argv[]){
 
 		if(inputFilename == NULL){
 			cerr << "Must specify input filename.\n";
-			cerr << "Usage: -in inputFile.ext [-anim] [-f farImage.ext] [-out outfile.vtf]\n";
+			cerr << "Usage: ./VTFnix -in inputFile.ext [-anim] [-f farImage.ext] [-out outfile.vtf]\n";
 			return -2;
 		}
 
