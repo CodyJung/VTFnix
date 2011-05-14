@@ -13,9 +13,26 @@ using namespace std;
 #ifndef VTFNIX_CPP
 #define VTFNIX_CPP
 
+////////////////////////
+/// Global constants ///
+////////////////////////
+
+const int ALL_MIPMAPS = 0;
+const int SKIP_LARGEST_MIPMAP = 1;
+const int ONLY_LARGEST_MIPMAP = 2;
+
+
+////////////////////////
+/// Helper functions ///
+////////////////////////
+
 bool isPowerOfTwo(int x){
 	return (x != 0) && ((x & (x - 1)) == 0);
 }
+
+/////////////////
+/// Functions ///
+/////////////////
 
 void writeLowResData(int imgSize, char* outputFile){
 	
@@ -48,12 +65,12 @@ void writeLowResData(int imgSize, char* outputFile){
 
 void writeHighResData(int imgSize, char* outputFile){
 	
-	cout << "Writing high res data for size " << imgSize << "\n";
+	cout << "Writing high res data for size " << imgSize;
 
 	int size = imgSize;
 
 	const void* imageData = malloc(ilGetInteger(IL_IMAGE_SIZE_OF_DATA));
-	cout << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << " ";
+	cout << " data_size: " << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << endl;
 	imageData = 0;
 	imageData = ilGetData();
 
@@ -87,7 +104,7 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	header.width = imgSize;
 	header.height = imgSize;
 	header.flags = 0x2200;
-	header.frames = frames;
+	header.frames = frames + 1;
 	header.firstFrame = 0;
 	header.padding0[0] = 0;
 	header.padding0[1] = 0;
@@ -148,7 +165,7 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	
 }
 
-int singleImage(char *filename, char *outputFile, int skipBiggest, bool skipHeaderAndLow){
+int singleImage(char *filename, char *outputFile, int mipmapOptions, bool onlyHighResData){
 	ilInit();
 	iluInit();
 
@@ -172,7 +189,7 @@ int singleImage(char *filename, char *outputFile, int skipBiggest, bool skipHead
 			iluBuildMipmaps();
 			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
 
-			if(!skipHeaderAndLow){
+			if(!onlyHighResData){
 				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), 1, outputFile);
 
 				/* 16x16 image or biggest below that */
@@ -183,13 +200,17 @@ int singleImage(char *filename, char *outputFile, int skipBiggest, bool skipHead
 				}
 				writeLowResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
 			}
-	
-			int startingMip = numMips-1;
-			int biggestMip = 0;
-			if(skipBiggest == 1){
+
+			int startingMip; int biggestMip;
+			if(mipmapOptions == ALL_MIPMAPS){
+				startingMip = numMips-1;
+				biggestMip = 0;
+			} else if(mipmapOptions == SKIP_LARGEST_MIPMAP){
+				startingMip = numMips-1;
 				biggestMip = 1;
-			} else if(skipBiggest == 2){
+			} else if(mipmapOptions == ONLY_LARGEST_MIPMAP){
 				startingMip = 0;
+				biggestMip = 0;
 			}
 	
 			for(int i=startingMip; i>=biggestMip; i--){
@@ -204,7 +225,7 @@ int singleImage(char *filename, char *outputFile, int skipBiggest, bool skipHead
 	}
 }
 
-int singleAnimation(char *filename, char *outputFile, int skipBiggest, bool skipHeaderAndLow){
+int singleAnimation(char *filename, char *outputFile, int mipmapOptions, bool onlyHighResData){
 	ilInit();
 	iluInit();
 
@@ -225,15 +246,15 @@ int singleAnimation(char *filename, char *outputFile, int skipBiggest, bool skip
 		} else {
 		
 			ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);	
-			int numFrames = ilGetInteger(IL_NUM_IMAGES);
-			if(numFrames == 0)
-				return singleImage(filename, outputFile, skipBiggest, skipHeaderAndLow);
+			int numFrames = ilGetInteger(IL_NUM_IMAGES) + 1;
+			if(numFrames == 0) //TODO See if this should be one
+				return singleImage(filename, outputFile, mipmapOptions, onlyHighResData);
 					
 			iluBuildMipmaps();
 			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
 			
 			// Non-fading sprays
-			if(!skipHeaderAndLow){
+			if(!onlyHighResData){
 				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), numFrames, outputFile);
 
 				/* 16x16 image or biggest below that */
@@ -245,29 +266,32 @@ int singleAnimation(char *filename, char *outputFile, int skipBiggest, bool skip
 				writeLowResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
 			}
 
-			// Setting up the logic for fading sprays
-			int startingMip = numMips;
-			int biggestMip = 0;
-			if(skipBiggest == 1){ // Will skip the largest mipmap
+			int startingMip; int biggestMip;
+			if(mipmapOptions == ALL_MIPMAPS){
+				startingMip = numMips;
+				biggestMip = 0;
+			} else if(mipmapOptions == SKIP_LARGEST_MIPMAP){
+				startingMip = numMips;
 				biggestMip = 1;
-			} else if(skipBiggest == 2){ // Will only do the largest mipmap
+			} else if(mipmapOptions == ONLY_LARGEST_MIPMAP){
 				startingMip = 1;
+				biggestMip = 0;
 			}
 
 			// Rolling it all together
 			for(int i=startingMip; i>=biggestMip; i--){
 				for(int j=0; j<numFrames; j++){
 					ILuint image = iluGenImage();
-					ilBindImage(image);	
 
 					ilLoadImage(filename);
+					ilBindImage(image);
 					ilActiveImage(j);
 					iluScale(ilGetInteger(IL_IMAGE_HEIGHT)*2, ilGetInteger(IL_IMAGE_WIDTH)*2, 1);
 					iluBuildMipmaps();
 					ilActiveMipmap(i);
 					if(i != 0){
+						cout << "mip" << i << " frame" << j << " size" << ilGetInteger(IL_IMAGE_HEIGHT);
 						writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
-						cout << "mip" << i << " frame" << j << " size" << ilGetInteger(IL_IMAGE_HEIGHT) << endl;
 					}
 
 					ilDeleteImage(image);
@@ -284,8 +308,8 @@ int fadingImage(char *near, char *far, char *outputFile){
 	ilInit();
 	iluInit();
 
-	singleAnimation(far, outputFile, 1, false);
-	singleAnimation(near, outputFile, 2, true);
+	singleAnimation(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
+	singleAnimation(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
 }
 
 

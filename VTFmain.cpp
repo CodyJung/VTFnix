@@ -38,11 +38,11 @@ int main(int argc, char* argv[]){
 
 
 		if(anim == true){
-			singleAnimation(inputFilename, outputFilename, 0, false);
+			singleAnimation(inputFilename, outputFilename, ALL_MIPMAPS, false);
 		} else if(fade == true){
 			fadingImage(inputFilename, farImage, outputFilename);
 		} else {
-			singleImage(inputFilename, outputFilename, 0, false);
+			singleImage(inputFilename, outputFilename, ALL_MIPMAPS, false);
 		}
 
 		return 0;			
