@@ -37,12 +37,20 @@ int main(int argc, char* argv[]){
 		}
 
 
+		// Convert everything to strings because why not
+
+		string *filename = new string(inputFilename);
+		string *out = new string(outputFilename);
+		string *far;
+		if(farImage != NULL)
+			far = new string(farImage);
+
 		if(anim == true){
-			singleAnimation(inputFilename, outputFilename, ALL_MIPMAPS, false);
+			animatedImage(*filename, *out, ALL_MIPMAPS, false); //inputFilename in this case being a folder name
 		} else if(fade == true){
-			fadingImage(inputFilename, farImage, outputFilename);
+			fadingImage(*filename, *far, *out);
 		} else {
-			singleImage(inputFilename, outputFilename, ALL_MIPMAPS, false);
+			processImage(*filename, *out, ALL_MIPMAPS, false, 1);
 		}
 
 		return 0;			

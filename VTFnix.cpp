@@ -2,6 +2,9 @@
 #include <fstream>
 #include <cstdlib>
 #include <iostream>
+#include <vector>
+#include <errno.h>
+#include <dirent.h>
 #include <nvtt/nvtt.h>
 #include <IL/il.h>
 #include <IL/ilu.h>
@@ -30,11 +33,44 @@ bool isPowerOfTwo(int x){
 	return (x != 0) && ((x & (x - 1)) == 0);
 }
 
+// Taken from the example at:
+// http://www.linuxquestions.org/questions/programming-9/c-list-files-in-directory-379323/
+int getdir (string dir, vector<string> &files)
+{
+    DIR *dp;
+    struct dirent *dirp;
+    if((dp  = opendir(dir.c_str())) == NULL) {
+        cerr << "Error(" << errno << ") opening " << dir << ": " << strerror(errno) << endl;
+        return errno;
+    }
+
+    while ((dirp = readdir(dp)) != NULL) {
+    	string fileName = string(dirp->d_name);
+    	if(fileName.compare("..") != 0 && fileName.compare(".") != 0)
+    		files.push_back(dir + "/" + fileName);
+    }
+
+    closedir(dp);
+    return 0;
+}
+
+// Returns the size of the image (for writing the animation header)
+int imageSize(string filename){
+	ilInit();
+
+	if(!ilLoadImage(filename.c_str())){
+		cerr << "Error loading input file\n";
+		return -1;
+	}
+
+	return ilGetInteger(IL_IMAGE_WIDTH);
+}
+
 /////////////////
 /// Functions ///
 /////////////////
 
-void writeLowResData(int imgSize, char* outputFile){
+void writeLowResData(int imgSize, string outputFile){
 	
 	cout << "Writing low res data\n";
 
@@ -63,7 +99,7 @@ void writeLowResData(int imgSize, char* outputFile){
 	compressor.process(inputOptions, compressionOptions, outputOptions);
 }
 
-void writeHighResData(int imgSize, char* outputFile){
+void writeHighResData(int imgSize, string outputFile){
 	
 	cout << "Writing high res data for size " << imgSize;
 
@@ -93,7 +129,7 @@ void writeHighResData(int imgSize, char* outputFile){
 	compressor.process(inputOptions, compressionOptions, outputOptions);
 }
 
-void writeHeader(int imgSize, int frames, char* outputFile){
+void writeHeader(int imgSize, int frames, string outputFile){
 
 	// A lot of this information comes from the wonderful VTFLib and VTFCMD
 	// See vtfheader.cpp for more info on each of these
@@ -104,7 +140,7 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	header.width = imgSize;
 	header.height = imgSize;
 	header.flags = 0x2200;
-	header.frames = frames + 1;
+	header.frames = frames;
 	header.firstFrame = 0;
 	header.padding0[0] = 0;
 	header.padding0[1] = 0;
@@ -139,7 +175,7 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	// This is the important stuff
 	cout << "Writing Header\n";
 	ofstream output;
-	output.open(outputFile, ios::out | ios::binary | ios::app);
+	output.open(outputFile.c_str(), ios::out | ios::binary);
 	output.write(reinterpret_cast<char *>(&header.signature), 4*sizeof(char));
 	output.write(reinterpret_cast<char *>(&header.version), 2*sizeof(int));
 	output.write(reinterpret_cast<char *>(&header.headerSize), sizeof(int));
@@ -165,11 +201,11 @@ void writeHeader(int imgSize, int frames, char* outputFile){
 	
 }
 
-int singleImage(char *filename, char *outputFile, int mipmapOptions, bool onlyHighResData){
+int processImage(string filename, string outputFile, int mipmapOptions, bool onlyHighResData, int frames){
 	ilInit();
 	iluInit();
 
-	if(!ilLoadImage(filename)){
+	if(!ilLoadImage(filename.c_str())){
 		cerr << "Error loading input file\n";
 		return -1;
 	} else if(!isPowerOfTwo(ilGetInteger(IL_IMAGE_WIDTH)) || !isPowerOfTwo(ilGetInteger(IL_IMAGE_HEIGHT))){
@@ -190,7 +226,7 @@ int singleImage(char *filename, char *outputFile, int mipmapOptions, bool onlyHi
 			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
 
 			if(!onlyHighResData){
-				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), 1, outputFile);
+				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), frames, outputFile);
 
 				/* 16x16 image or biggest below that */
 				if(numMips >= 5){
@@ -199,6 +235,16 @@ int singleImage(char *filename, char *outputFile, int mipmapOptions, bool onlyHi
 					ilActiveMipmap(0);
 				}
 				writeLowResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
+			} else {
+				/* Don't ask me why we need this. I don't know.
+				I figured since we're regenerating the mips later, it's not an issue.
+				But for some reason, if I don't do this, it freaks out and only gives me
+				part of my data */
+				if(numMips >= 5){
+					ilActiveMipmap(numMips - 5);
+				} else {
+					ilActiveMipmap(0);
+				}
 			}
 
 			int startingMip; int biggestMip;
@@ -214,7 +260,7 @@ int singleImage(char *filename, char *outputFile, int mipmapOptions, bool onlyHi
 			}
 	
 			for(int i=startingMip; i>=biggestMip; i--){
-				ilLoadImage(filename);
+				ilLoadImage(filename.c_str());
 				iluBuildMipmaps();
 				ilActiveMipmap(i);
 				writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
@@ -225,91 +271,42 @@ int singleImage(char *filename, char *outputFile, int mipmapOptions, bool onlyHi
 	}
 }
 
-int singleAnimation(char *filename, char *outputFile, int mipmapOptions, bool onlyHighResData){
-	ilInit();
-	iluInit();
+int animatedImage(string folder, string outputFile, int mipmapOptions, bool onlyHighResData){
+	vector<string> files;
 
-	if(!ilLoadImage(filename)){
-		cerr << "Error loading input file\n";
-		return -1;
-	} else if(!isPowerOfTwo(ilGetInteger(IL_IMAGE_WIDTH)) || !isPowerOfTwo(ilGetInteger(IL_IMAGE_HEIGHT))){
-		cerr << "Width and height must be powers of two\n";
-		return -2;
-	} else if(ilGetInteger(IL_IMAGE_WIDTH) != ilGetInteger(IL_IMAGE_HEIGHT)){
-		cerr << "Width and height must be equal\n";
-		return -3;
-	} else {
-		
-		if(!ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE)){
-			cerr << "Error converting image to BGRA format.\n";
-			return -4;
+	if(getdir(folder, files) != 0){
+		return -5;
+	}
+
+	if(files.size() == 1){
+		return processImage(files.at(0), outputFile, mipmapOptions, onlyHighResData, 1);
+	}
+
+	for(int j=0; j<files.size(); j++){
+
+		string filename = files.at(j);
+
+		if(j == 0){
+			cout << filename;
+			processImage(filename, outputFile, ALL_MIPMAPS, false, files.size());
 		} else {
-		
-			ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);	
-			int numFrames = ilGetInteger(IL_NUM_IMAGES) + 1;
-			if(numFrames == 0) //TODO See if this should be one
-				return singleImage(filename, outputFile, mipmapOptions, onlyHighResData);
-					
-			iluBuildMipmaps();
-			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
-			
-			// Non-fading sprays
-			if(!onlyHighResData){
-				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), numFrames, outputFile);
-
-				/* 16x16 image or biggest below that */
-				if(numMips >= 5){
-					ilActiveMipmap(numMips - 5);
-				} else {
-					ilActiveMipmap(0);
-				}
-				writeLowResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
-			}
-
-			int startingMip; int biggestMip;
-			if(mipmapOptions == ALL_MIPMAPS){
-				startingMip = numMips;
-				biggestMip = 0;
-			} else if(mipmapOptions == SKIP_LARGEST_MIPMAP){
-				startingMip = numMips;
-				biggestMip = 1;
-			} else if(mipmapOptions == ONLY_LARGEST_MIPMAP){
-				startingMip = 1;
-				biggestMip = 0;
-			}
-
-			// Rolling it all together
-			for(int i=startingMip; i>=biggestMip; i--){
-				for(int j=0; j<numFrames; j++){
-					ILuint image = iluGenImage();
-
-					ilLoadImage(filename);
-					ilBindImage(image);
-					ilActiveImage(j);
-					iluScale(ilGetInteger(IL_IMAGE_HEIGHT)*2, ilGetInteger(IL_IMAGE_WIDTH)*2, 1);
-					iluBuildMipmaps();
-					ilActiveMipmap(i);
-					if(i != 0){
-						cout << "mip" << i << " frame" << j << " size" << ilGetInteger(IL_IMAGE_HEIGHT);
-						writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
-					}
-
-					ilDeleteImage(image);
-				}
-			}
+			cout << filename;
+			processImage(filename, outputFile, ALL_MIPMAPS, true, files.size());
 		}
+
+	}
+
 	cout << "Done.\n";
 	return 0;
-	}
 }
 
 
-int fadingImage(char *near, char *far, char *outputFile){
+int fadingImage(string near, string far, string outputFile){
 	ilInit();
 	iluInit();
 
-	singleAnimation(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
-	singleAnimation(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
+	processImage(far, outputFile, SKIP_LARGEST_MIPMAP, false, 1); //Output the smallest mipmaps (the far images)
+	processImage(near, outputFile, ONLY_LARGEST_MIPMAP, true, 1); //Output the close image (the large mipmap
 }
 
 
