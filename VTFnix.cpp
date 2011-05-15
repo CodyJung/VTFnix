@@ -58,12 +58,17 @@ int getdir (string dir, vector<string> &files)
 int imageSize(string filename){
 	ilInit();
 
+	ILuint image = iluGenImage();
+	ilBindImage(image);
+
 	if(!ilLoadImage(filename.c_str())){
 		cerr << "Error loading input file\n";
 		return -1;
 	}
 
 	return ilGetInteger(IL_IMAGE_WIDTH);
+
+	ilDeleteImage(image);
 }
 
 /////////////////
@@ -81,9 +86,14 @@ void writeLowResData(int imgSize, string outputFile){
 		size = 16; //I know my inputs are going to be square
 	}
 
+	const void* imageData = malloc(ilGetInteger(IL_IMAGE_SIZE_OF_DATA));
+	cout << " data_size: " << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << endl;
+	imageData = 0;
+	imageData = ilGetData();
+
 	nvtt::InputOptions inputOptions;
 	inputOptions.setTextureLayout(nvtt::TextureType_2D, size, size);
-	inputOptions.setMipmapData(ilGetData(), size, size);
+	inputOptions.setMipmapData(imageData, size, size);
 	inputOptions.setMipmapGeneration(false);
 	
 	nvtt::OutputOptions outputOptions;
@@ -94,6 +104,7 @@ void writeLowResData(int imgSize, string outputFile){
 
 	nvtt::CompressionOptions compressionOptions;
 	compressionOptions.setFormat(nvtt::Format_DXT1);
+	compressionOptions.setQuality(nvtt::Quality_Fastest);
 	
 	nvtt::Compressor compressor;
 	compressor.process(inputOptions, compressionOptions, outputOptions);
@@ -139,7 +150,7 @@ void writeHeader(int imgSize, int frames, string outputFile){
 	header.headerSize = 0x50;
 	header.width = imgSize;
 	header.height = imgSize;
-	header.flags = 0x2200;
+	header.flags = 0x2000;
 	header.frames = frames;
 	header.firstFrame = 0;
 	header.padding0[0] = 0;
@@ -201,7 +212,7 @@ void writeHeader(int imgSize, int frames, string outputFile){
 	
 }
 
-int processImage(string filename, string outputFile, int mipmapOptions, bool onlyHighResData, int frames){
+int singleImage(string filename, string outputFile, int mipmapOptions, bool onlyHighResData){
 	ilInit();
 	iluInit();
 
@@ -226,7 +237,7 @@ int processImage(string filename, string outputFile, int mipmapOptions, bool onl
 			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
 
 			if(!onlyHighResData){
-				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), frames, outputFile);
+				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), 1, outputFile);
 
 				/* 16x16 image or biggest below that */
 				if(numMips >= 5){
@@ -261,6 +272,7 @@ int processImage(string filename, string outputFile, int mipmapOptions, bool onl
 	
 			for(int i=startingMip; i>=biggestMip; i--){
 				ilLoadImage(filename.c_str());
+				ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE);
 				iluBuildMipmaps();
 				ilActiveMipmap(i);
 				writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
@@ -271,27 +283,90 @@ int processImage(string filename, string outputFile, int mipmapOptions, bool onl
 	}
 }
 
-int animatedImage(string folder, string outputFile, int mipmapOptions, bool onlyHighResData){
+int animatedImage(string folder, string outputFile, int mipmapOptions, bool onlyHighResData) {
 	vector<string> files;
 
-	if(getdir(folder, files) != 0){
+	if (getdir(folder, files) != 0) {
 		return -5;
 	}
 
-	if(files.size() == 1){
-		return processImage(files.at(0), outputFile, mipmapOptions, onlyHighResData, 1);
+	if (files.size() == 1) {
+		return singleImage(files.at(0), outputFile, mipmapOptions, onlyHighResData);
 	}
 
-	for(int j=0; j<files.size(); j++){
+	int imageSz = imageSize(files.at(0));
+	int numMips = (int) log2(imageSz) + 1; //Base our mipmaps on the first image
+	int startingMip; int biggestMip;
+	if (mipmapOptions == ALL_MIPMAPS) {
+		startingMip = numMips - 1;
+		biggestMip = 0;
+	} else if (mipmapOptions == SKIP_LARGEST_MIPMAP) {
+		startingMip = numMips - 1;
+		biggestMip = 1;
+	} else if (mipmapOptions == ONLY_LARGEST_MIPMAP) {
+		startingMip = 0;
+		biggestMip = 0;
+	}
 
-		string filename = files.at(j);
+	for (int i = startingMip; i >= biggestMip; i--) {
 
-		if(j == 0){
-			cout << filename;
-			processImage(filename, outputFile, ALL_MIPMAPS, false, files.size());
-		} else {
-			cout << filename;
-			processImage(filename, outputFile, ALL_MIPMAPS, true, files.size());
+		for (int j = 0; j < files.size(); j++) {
+
+			string filename = files.at(j);
+
+			ilInit();
+			iluInit();
+
+			if (!ilLoadImage(filename.c_str())) {
+				cerr << "Error loading input file\n";
+				return -1;
+			} else if (!isPowerOfTwo(ilGetInteger(IL_IMAGE_WIDTH)) || !isPowerOfTwo(ilGetInteger(IL_IMAGE_HEIGHT))) {
+				cerr << "Width and height must be powers of two\n";
+				return -2;
+			} else if (ilGetInteger(IL_IMAGE_WIDTH) != ilGetInteger(IL_IMAGE_HEIGHT)) {
+				cerr << "Width and height must be equal\n";
+				return -3;
+			} else {
+
+				if (!ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE)) {
+					cerr << "Error converting image to BGRA format.\n";
+					return -4;
+				} else {
+
+					ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);
+					iluBuildMipmaps();
+					if (i == startingMip && j == 0) {
+						writeHeader(imageSz, files.size(), outputFile);
+
+						/* 16x16 image or biggest below that */
+						if (numMips >= 5) {
+							ilActiveMipmap(numMips - 5);
+						} else {
+							ilActiveMipmap(0);
+						}
+						writeLowResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
+					} else {
+						/* Don't ask me why we need this. I don't know.
+						 I figured since we're regenerating the mips later, it's not an issue.
+						 But for some reason, if I don't do this, it freaks out and only gives me
+						 part of my data */
+						if (numMips >= 5) {
+							ilActiveMipmap(numMips - 5);
+						} else {
+							ilActiveMipmap(0);
+						}
+					}
+
+					ILuint img = iluGenImage();
+					ilBindImage(img);
+					ilLoadImage(filename.c_str());
+					ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE);
+					iluBuildMipmaps();
+					ilActiveMipmap(i);
+					writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
+					ilDeleteImage(img);
+				}
+			}
 		}
 
 	}
@@ -305,8 +380,8 @@ int fadingImage(string near, string far, string outputFile){
 	ilInit();
 	iluInit();
 
-	processImage(far, outputFile, SKIP_LARGEST_MIPMAP, false, 1); //Output the smallest mipmaps (the far images)
-	processImage(near, outputFile, ONLY_LARGEST_MIPMAP, true, 1); //Output the close image (the large mipmap
+	singleImage(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
+	singleImage(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
 }
 
 

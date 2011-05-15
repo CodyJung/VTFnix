@@ -51,7 +51,7 @@ int main(int argc, char* argv[]){
 		} else if(fade == true){
 			fadingImage(*filename, *far, *out);
 		} else {
-			processImage(*filename, *out, ALL_MIPMAPS, false, 1);
+			singleImage(*filename, *out, ALL_MIPMAPS, false);
 		}
 
 		return 0;			
