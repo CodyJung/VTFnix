@@ -3,7 +3,7 @@
 int main(int argc, char* argv[]){
 
 	if(argc < 3){
-		cerr << "Usage: [-in inputFile.ext | -anim inputDirectory] [-f farImage.ext] [-out outfile.vtf]\n";
+		cerr << "Usage: [-in inputFile.ext | -anim inputDirectory] [-f farImage.ext | -fanim farDirectory] [-out outfile.vtf]\n";
 		return -1;
 	} else {
 		char *inputFilename = NULL, *farImage = NULL, *outputFilename = NULL;
@@ -13,7 +13,7 @@ int main(int argc, char* argv[]){
 		for(int i=1; i<argc; i++){
 			if(strcmp(argv[i], "-in") == 0 && i+1 != argc && anim != true){
 				inputFilename = argv[i+1];
-			} else if(strcmp(argv[i], "-f") == 0 && i+1 != argc){
+			} else if(strcmp(argv[i], "-f") == 0 && i+1 != argc && fade != true){
 				farImage = argv[i+1];
 				fade = true;
 			} else if(strcmp(argv[i], "-out") == 0 && i+1 != argc){
@@ -21,6 +21,9 @@ int main(int argc, char* argv[]){
 			} else if(strcmp(argv[i], "-anim") == 0 && i+1 != argc){
 				anim = true;
 				inputFilename = argv[i+1];
+			} else if(strcmp(argv[i], "-fanim") == 0 && i+1 != argc){
+				fade = true;
+				farImage = argv[i+1];
 			}
 		}
 

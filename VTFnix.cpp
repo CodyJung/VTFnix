@@ -40,7 +40,6 @@ int getdir (string dir, vector<string> &files)
     DIR *dp;
     struct dirent *dirp;
     if((dp  = opendir(dir.c_str())) == NULL) {
-        cerr << "Error(" << errno << ") opening " << dir << ": " << strerror(errno) << endl;
         return errno;
     }
 
@@ -150,7 +149,7 @@ void writeHeader(int imgSize, int frames, string outputFile){
 	header.headerSize = 0x50;
 	header.width = imgSize;
 	header.height = imgSize;
-	header.flags = 0x2000;
+	header.flags = 0x2200;
 	header.frames = frames;
 	header.firstFrame = 0;
 	header.padding0[0] = 0;
@@ -271,11 +270,14 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 			}
 	
 			for(int i=startingMip; i>=biggestMip; i--){
+				ILuint img = iluGenImage();
+				ilBindImage(img);
 				ilLoadImage(filename.c_str());
 				ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE);
 				iluBuildMipmaps();
 				ilActiveMipmap(i);
 				writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
+				ilDeleteImage(img);
 			}
 		}
 	cout << "Done.";
@@ -285,13 +287,15 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 
 int animatedImage(string folder, string outputFile, int mipmapOptions, bool onlyHighResData) {
 	vector<string> files;
-
-	if (getdir(folder, files) != 0) {
-		return -5;
-	}
-
-	if (files.size() == 1) {
-		return singleImage(files.at(0), outputFile, mipmapOptions, onlyHighResData);
+	int error;
+	if ((error = getdir(folder, files)) != 0) {
+		if(error == 20){
+			clog << "Unable to open directory; assuming single image" << endl;
+			return singleImage(folder, outputFile, mipmapOptions, onlyHighResData);
+		} else {
+	        cerr << "Error(" << error << ") opening " << folder << ": " << strerror(error) << endl;
+			return -5;
+		}
 	}
 
 	int imageSz = imageSize(files.at(0));
@@ -350,6 +354,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 						 I figured since we're regenerating the mips later, it's not an issue.
 						 But for some reason, if I don't do this, it freaks out and only gives me
 						 part of my data */
+						//TODO see if this fixed itself after that last commit
 						if (numMips >= 5) {
 							ilActiveMipmap(numMips - 5);
 						} else {
@@ -376,12 +381,13 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 }
 
 
-int fadingImage(string near, string far, string outputFile){
+void fadingImage(string near, string far, string outputFile){
 	ilInit();
 	iluInit();
 
-	singleImage(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
-	singleImage(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
+	clog << "Far: " << far << " Near: " << near << endl;
+	animatedImage(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
+	animatedImage(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
 }
 
 
