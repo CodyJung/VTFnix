@@ -19,7 +19,7 @@ cmake, build-essential, and lib*-dev (e.g. libpng-dev) for each filetype you wan
 
 Next, download both Nvidia texture tools and the devIL libraries:
 http://downloads.sourceforge.net/openil/DevIL-1.7.8.tar.gz
-http://code.google.com/p/nvidia-texture-tools/downloads/detail?name=nvidia-texture-tools-2.0.8-1.tar.gz
+http://nvidia-texture-tools.googlecode.com/files/nvidia-texture-tools-2.0.8-1.tar.gz
 
 	////////////////////////////
 	/// Nvidia texture tools ///
