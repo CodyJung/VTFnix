@@ -1,16 +1,16 @@
 all:VTFnix
 
 VTFnix:VTFmain.o VTFnix.o VTFheader.h VTFoutput.o
-	g++ -g VTFmain.o -L/usr/local/lib/ -lnvtt -lIL -lILU -o"VTFnix"
+	g++ VTFmain.o -O2 -L/usr/local/lib/ -lnvtt -lIL -lILU -o"VTFnix"
 
 VTFmain.o:VTFmain.cpp
-	g++ -c -g VTFmain.cpp
+	g++ -c -O2 VTFmain.cpp
 
 VTFnix.o:VTFnix.cpp
-	g++ -c -g VTFnix.cpp
+	g++ -c -O2 VTFnix.cpp
 
 VTFoutput.o:VTFoutput.cpp
-	g++ -c -g VTFoutput.cpp
+	g++ -c -O2 VTFoutput.cpp
 
 clean:
 	rm -rf *.o

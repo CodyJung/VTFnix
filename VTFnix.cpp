@@ -76,7 +76,7 @@ int imageSize(string filename){
 
 void writeLowResData(int imgSize, string outputFile){
 	
-	cout << "Writing low res data\n";
+	//cout << "Writing low res data\n";
 
 	int size;
 	if(imgSize <= 16){
@@ -86,7 +86,7 @@ void writeLowResData(int imgSize, string outputFile){
 	}
 
 	const void* imageData = malloc(ilGetInteger(IL_IMAGE_SIZE_OF_DATA));
-	cout << " data_size: " << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << endl;
+	//cout << " data_size: " << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << endl;
 	imageData = 0;
 	imageData = ilGetData();
 
@@ -111,12 +111,12 @@ void writeLowResData(int imgSize, string outputFile){
 
 void writeHighResData(int imgSize, string outputFile){
 	
-	cout << "Writing high res data for size " << imgSize;
+	//cout << "Writing high res data for size " << imgSize;
 
 	int size = imgSize;
 
 	const void* imageData = malloc(ilGetInteger(IL_IMAGE_SIZE_OF_DATA));
-	cout << " data_size: " << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << endl;
+	//cout << " data_size: " << ilGetInteger(IL_IMAGE_SIZE_OF_DATA) << endl;
 	imageData = 0;
 	imageData = ilGetData();
 
@@ -183,7 +183,7 @@ void writeHeader(int imgSize, int frames, string outputFile){
 	//cout << "Header size:" + sizeof(tagVTFHEADER);
 
 	// This is the important stuff
-	cout << "Writing Header\n";
+	//cout << "Writing Header\n";
 	ofstream output;
 	output.open(outputFile.c_str(), ios::out | ios::binary);
 	output.write(reinterpret_cast<char *>(&header.signature), 4*sizeof(char));
@@ -280,7 +280,7 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 				ilDeleteImage(img);
 			}
 		}
-	cout << "Done.";
+	//cout << "Done.";
 	return 0;
 	}
 }
@@ -290,7 +290,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 	int error;
 	if ((error = getdir(folder, files)) != 0) {
 		if(error == 20){
-			clog << "Unable to open directory; assuming single image" << endl;
+			clog << "Unable to open input as directory; assuming single image" << endl;
 			return singleImage(folder, outputFile, mipmapOptions, onlyHighResData);
 		} else {
 	        cerr << "Error(" << error << ") opening " << folder << ": " << strerror(error) << endl;
@@ -339,7 +339,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 
 					ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);
 					iluBuildMipmaps();
-					if (i == startingMip && j == 0) {
+					if (!onlyHighResData && j==0 && i==startingMip) {
 						writeHeader(imageSz, files.size(), outputFile);
 
 						/* 16x16 image or biggest below that */
@@ -376,7 +376,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 
 	}
 
-	cout << "Done.\n";
+	//cout << "Done.\n";
 	return 0;
 }
 
@@ -385,7 +385,6 @@ void fadingImage(string near, string far, string outputFile){
 	ilInit();
 	iluInit();
 
-	clog << "Far: " << far << " Near: " << near << endl;
 	animatedImage(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
 	animatedImage(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
 }
