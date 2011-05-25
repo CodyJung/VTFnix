@@ -62,7 +62,7 @@ int imageSize(string filename){
 
 	if(!ilLoadImage(filename.c_str())){
 		cerr << "Error loading input file\n";
-		return -1;
+		return 3;
 	}
 
 	return ilGetInteger(IL_IMAGE_WIDTH);
@@ -217,18 +217,18 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 
 	if(!ilLoadImage(filename.c_str())){
 		cerr << "Error loading input file\n";
-		return -1;
+		return 3;
 	} else if(!isPowerOfTwo(ilGetInteger(IL_IMAGE_WIDTH)) || !isPowerOfTwo(ilGetInteger(IL_IMAGE_HEIGHT))){
 		cerr << "Width and height must be powers of two\n";
-		return -2;
+		return 4;
 	} else if(ilGetInteger(IL_IMAGE_WIDTH) != ilGetInteger(IL_IMAGE_HEIGHT)){
 		cerr << "Width and height must be equal\n";
-		return -3;
+		return 5;
 	} else {
 		
 		if(!ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE)){
 			cerr << "Error converting image to BGRA format.\n";
-			return -4;
+			return 6;
 		} else {
 		
 			ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);	
@@ -294,7 +294,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 			return singleImage(folder, outputFile, mipmapOptions, onlyHighResData);
 		} else {
 	        cerr << "Error(" << error << ") opening " << folder << ": " << strerror(error) << endl;
-			return -5;
+			return 7;
 		}
 	}
 
@@ -323,18 +323,18 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 
 			if (!ilLoadImage(filename.c_str())) {
 				cerr << "Error loading input file\n";
-				return -1;
+				return 3;
 			} else if (!isPowerOfTwo(ilGetInteger(IL_IMAGE_WIDTH)) || !isPowerOfTwo(ilGetInteger(IL_IMAGE_HEIGHT))) {
 				cerr << "Width and height must be powers of two\n";
-				return -2;
+				return 4;
 			} else if (ilGetInteger(IL_IMAGE_WIDTH) != ilGetInteger(IL_IMAGE_HEIGHT)) {
 				cerr << "Width and height must be equal\n";
-				return -3;
+				return 5;
 			} else {
 
 				if (!ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE)) {
 					cerr << "Error converting image to BGRA format.\n";
-					return -4;
+					return 6;
 				} else {
 
 					ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);

@@ -7,7 +7,7 @@ int main(int argc, char* argv[]){
 		cerr << "./VTFnix -i inputFile.ext [-f farImage.ext] [-o outfile.vtf]\n";
 		cerr << "./VTFnix -i inputDirectory [-f farDirectory] [-o outfile.vtf]\n";
 		cerr << "Inputs for fading sprays must be identical in size (and number of frames, if an animation)\n";
-		return -1;
+		return 1;
 	} else {
 		char *inputFilename = NULL, *farImage = NULL, *outputFilename = NULL;
 		bool anim = false;
@@ -31,7 +31,7 @@ int main(int argc, char* argv[]){
 			cerr << "./VTFnix -i inputFile.ext [-f farImage.ext] [-o outfile.vtf]\n";
 			cerr << "./VTFnix -i inputDirectory [-f farDirectory] [-o outfile.vtf]\n";
 			cerr << "Inputs for fading sprays must be identical in size (and number of frames, if an animation)\n";
-			return -2;
+			return 2;
 		}
 
 
