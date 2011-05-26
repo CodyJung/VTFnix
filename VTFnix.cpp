@@ -109,7 +109,7 @@ void writeLowResData(int imgSize, string outputFile){
 	compressor.process(inputOptions, compressionOptions, outputOptions);
 }
 
-void writeHighResData(int imgSize, string outputFile){
+void writeHighResData(int imgSize, string outputFile, bool alpha){
 	
 	//cout << "Writing high res data for size " << imgSize;
 
@@ -132,14 +132,17 @@ void writeHighResData(int imgSize, string outputFile){
 	outputOptions.setOutputHeader(false);
 
 	nvtt::CompressionOptions compressionOptions;
-	compressionOptions.setFormat(nvtt::Format_DXT5);
+	if(alpha)
+		compressionOptions.setFormat(nvtt::Format_DXT5);
+	else
+		compressionOptions.setFormat(nvtt::Format_DXT1);
 	compressionOptions.setQuality(nvtt::Quality_Fastest);
 	
 	nvtt::Compressor compressor;
 	compressor.process(inputOptions, compressionOptions, outputOptions);
 }
 
-void writeHeader(int imgSize, int frames, string outputFile){
+void writeHeader(int imgSize, int frames, string outputFile, bool alpha){
 
 	// A lot of this information comes from the wonderful VTFLib and VTFCMD
 	// See vtfheader.cpp for more info on each of these
@@ -164,9 +167,12 @@ void writeHeader(int imgSize, int frames, string outputFile){
 	header.padding1[2] = 0;
 	header.padding1[3] = 0;
 	header.bumpmapScale = 1;
-	header.highResImageFormat = 0xF; //DXT5
+	if(alpha)
+		header.highResImageFormat = 0xF; //DXT5
+	else
+		header.highResImageFormat = 0xD; //DXT1
 	header.mipmapCount = (char)(log2(imgSize) + 1);
-	header.lowResImageFormat = 0xD; //DXT1
+	header.lowResImageFormat = 0xD; //Always DXT1
 	if(imgSize <= 16){
 		header.lowResImageWidth = imgSize;
 		header.lowResImageHeight = imgSize;
@@ -175,10 +181,6 @@ void writeHeader(int imgSize, int frames, string outputFile){
 		header.lowResImageHeight = 16; //So I don't need to bother with scaling stuff
 	}
 	header.depth = 1;
-	header.padding3[0] = 0;
-	header.padding3[1] = 0;
-	header.padding3[2] = 0;
-	header.resourceCount = 0;
 	
 	//cout << "Header size:" + sizeof(tagVTFHEADER);
 
@@ -204,14 +206,12 @@ void writeHeader(int imgSize, int frames, string outputFile){
 	output.write(reinterpret_cast<char *>(&header.lowResImageWidth), sizeof(char));
 	output.write(reinterpret_cast<char *>(&header.lowResImageHeight), sizeof(char));
 	output.write(reinterpret_cast<char *>(&header.depth), sizeof(short));
-	output.write("000000000000000", 15*sizeof(char));
-	//output.write(reinterpret_cast<char *>(&header.padding3), 3*sizeof(char));
-	//output.write(reinterpret_cast<char *>(&header.resourceCount), sizeof(int));
+	output.write("000000000000000", 15*sizeof(char)); //This may not be right.
 	output.close();
 	
 }
 
-int singleImage(string filename, string outputFile, int mipmapOptions, bool onlyHighResData){
+int singleImage(string filename, string outputFile, int mipmapOptions, bool onlyHighResData, bool alpha){
 	ilInit();
 	iluInit();
 
@@ -236,7 +236,7 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 			int numMips = (int)log2(ilGetInteger(IL_IMAGE_HEIGHT)) + 1;
 
 			if(!onlyHighResData){
-				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), 1, outputFile);
+				writeHeader(ilGetInteger(IL_IMAGE_HEIGHT), 1, outputFile, alpha);
 
 				/* 16x16 image or biggest below that */
 				if(numMips >= 5){
@@ -276,7 +276,7 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 				ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE);
 				iluBuildMipmaps();
 				ilActiveMipmap(i);
-				writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
+				writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile, alpha);
 				ilDeleteImage(img);
 			}
 		}
@@ -285,13 +285,13 @@ int singleImage(string filename, string outputFile, int mipmapOptions, bool only
 	}
 }
 
-int animatedImage(string folder, string outputFile, int mipmapOptions, bool onlyHighResData) {
+int animatedImage(string folder, string outputFile, int mipmapOptions, bool onlyHighResData, bool alpha) {
 	vector<string> files;
 	int error;
 	if ((error = getdir(folder, files)) != 0) {
 		if(error == 20){
 			clog << "Unable to open input as directory; assuming single image" << endl;
-			return singleImage(folder, outputFile, mipmapOptions, onlyHighResData);
+			return singleImage(folder, outputFile, mipmapOptions, onlyHighResData, alpha);
 		} else {
 	        cerr << "Error(" << error << ") opening " << folder << ": " << strerror(error) << endl;
 			return 7;
@@ -340,7 +340,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 					ilHint(IL_MEM_SPEED_HINT, IL_LESS_MEM);
 					iluBuildMipmaps();
 					if (!onlyHighResData && j==0 && i==startingMip) {
-						writeHeader(imageSz, files.size(), outputFile);
+						writeHeader(imageSz, files.size(), outputFile, alpha);
 
 						/* 16x16 image or biggest below that */
 						if (numMips >= 5) {
@@ -368,7 +368,7 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 					ilConvertImage(IL_BGRA, IL_UNSIGNED_BYTE);
 					iluBuildMipmaps();
 					ilActiveMipmap(i);
-					writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile);
+					writeHighResData(ilGetInteger(IL_IMAGE_HEIGHT), outputFile, alpha);
 					ilDeleteImage(img);
 				}
 			}
@@ -381,12 +381,12 @@ int animatedImage(string folder, string outputFile, int mipmapOptions, bool only
 }
 
 
-void fadingImage(string near, string far, string outputFile){
+void fadingImage(string near, string far, string outputFile, bool alpha){
 	ilInit();
 	iluInit();
 
-	animatedImage(far, outputFile, SKIP_LARGEST_MIPMAP, false); //Output the smallest mipmaps (the far images)
-	animatedImage(near, outputFile, ONLY_LARGEST_MIPMAP, true); //Output the close image (the large mipmap
+	animatedImage(far, outputFile, SKIP_LARGEST_MIPMAP, false, alpha); //Output the smallest mipmaps (the far images)
+	animatedImage(near, outputFile, ONLY_LARGEST_MIPMAP, true, alpha); //Output the close image (the large mipmap
 }
 
 

@@ -24,8 +24,6 @@ typedef struct tagVTFHEADER
 	unsigned char	lowResImageHeight;	// Low resolution image height.
 	unsigned short	depth;			// Depth of the largest mipmap in pixels.
 						// Must be a power of 2. Can be 0 or 1 for a 2D texture (v7.2 only).
-	unsigned char 	padding3[3];
-	unsigned int 	resourceCount;
 	tagVTFHEADER(){
 		strcpy(signature, "VTF");
 	}
