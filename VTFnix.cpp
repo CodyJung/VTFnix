@@ -5,6 +5,7 @@
 #include <vector>
 #include <errno.h>
 #include <dirent.h>
+#include <algorithm>
 #include <nvtt/nvtt.h>
 #include <IL/il.h>
 #include <IL/ilu.h>
@@ -48,6 +49,8 @@ int getdir (string dir, vector<string> &files)
     	if(fileName.compare("..") != 0 && fileName.compare(".") != 0)
     		files.push_back(dir + "/" + fileName);
     }
+
+    sort(files.begin(), files.end());
 
     closedir(dp);
     return 0;
